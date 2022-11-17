@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 import datetime
 import json
+import xml.etree.ElementTree as ET
+
 import requests
 
 try:
@@ -624,6 +626,65 @@ class Fitbit(object):
             qualifier=qualifier
         )
         return self.make_request(url)
+
+    def activity_logs_list(self, user_id=None, before_date=None, after_date=None, limit=100, offset=0):
+        """
+        * https://dev.fitbit.com/build/reference/web-api/activity/get-activity-log-list/
+
+        Activity logs list retrieves a list of a user's activity log entries before or after
+        a given day with offset and limit. Use before_date OR after_date to retrieve the
+        activities.
+
+        To paginate, request the next and previous links in the pagination response object.
+        Do not manually specify the offset parameter, as it will be removed in the future
+        and your app will break.
+
+        Arguments:
+        * ``before_date`` -- The date in the format yyyy-MM-ddTHH:mm:ss
+        * ``after_date`` -- The date in the format yyyy-MM-ddTHH:mm:ss
+        * ``limit`` -- The max of the number of entries returned (maximum: 20)
+        * ``offset`` -- This should always be set to 0. Required for now.
+        """
+        base_url = "{0}/{1}/user/{2}/activities/list.json?".format(
+            *self._get_common_args(user_id)
+        )
+        if (not before_date) and (not after_date):
+            raise ValueError('either before_date or after_date is required')
+        params = {'limit': limit, 'offset': offset}
+
+        if before_date:
+            params['sort'] = 'desc'  # sort parameter is automatically inferred
+            params['beforeDate'] = before_date
+        if after_date:
+            params['sort'] = 'asc'
+            params['afterDate'] = after_date
+        if after_date and before_date:
+            params['sort'] = 'desc'
+        url = base_url + urlencode(params)
+        return self.make_request(url)
+
+    def activity_tcx(self, user_id=None, log_id=''):
+        """
+        * https://dev.fitbit.com/docs/activity/#get-activity-tcx
+
+        Return
+        ------
+        tcx : xml.etree.ElementTree.Element
+            root element of TCX data
+
+        Exception
+        ---------
+        BadResponse
+            when HTTP response status is error
+        """
+        url = "{0}/{1}/user/{2}/activities/{log_id}.tcx".format(
+            *self._get_common_args(user_id),
+            log_id=log_id
+        )
+        response = self.client.make_request(url)
+        if response.status_code != 200:
+            raise exceptions.BadResponse
+        return ET.fromstring(response.content)
 
     def _food_stats(self, user_id=None, qualifier=''):
         """
