@@ -2,6 +2,7 @@
 import datetime
 import json
 import xml.etree.ElementTree as ET
+from json import JSONDecodeError
 
 import requests
 
@@ -72,10 +73,16 @@ class FitbitOauth2Client(object):
             # If our current token has no expires_at, or something manages to slip
             # through that check
             if response.status_code == 401:
-                d = json.loads(response.content.decode('utf8'))
-                if d['errors'][0]['errorType'] == 'expired_token':
-                    self.refresh_token()
-                    response = self.session.request(method, url, **kwargs)
+                print(response.content)
+                try:
+                    d = json.loads(response.content.decode('utf8'))
+                    if d['errors'][0]['errorType'] == 'expired_token':
+                        self.refresh_token()
+                        response = self.session.request(method, url, **kwargs)
+                except JSONDecodeError as e:
+                    d = {"errors": [{"errorType": "unknown", "fieldName": "n/a",
+                                     "message": response.content.decode('utf8')}],
+                         "success": False}
 
             return response
         except requests.Timeout as e:

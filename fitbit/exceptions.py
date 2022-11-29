@@ -25,14 +25,16 @@ class Timeout(Exception):
 class HTTPException(Exception):
     def __init__(self, response, *args, **kwargs):
         try:
-            errors = json.loads(response.content.decode('utf8'))['errors']
-            message = '\n'.join([error['message'] for error in errors])
-        except Exception:
+            self.errors = json.loads(response.content.decode('utf8'))['errors']
+            self.message = '\n'.join([error['message'] for error in self.errors])
+        except Exception as e:
             if hasattr(response, 'status_code') and response.status_code == 401:
-                message = response.content.decode('utf8')
+                self.message = response.content.decode('utf8')
+                self.errors = ''
             else:
-                message = response
-        super(HTTPException, self).__init__(message, *args, **kwargs)
+                self.message = response.content
+                self.errors = ''
+        super().__init__(self.message)
 
 
 class HTTPBadRequest(HTTPException):
